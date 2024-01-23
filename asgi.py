@@ -72,8 +72,16 @@ async def main(run_app, host: str, port: int) -> None:
         await writer.wait_closed()
 
     async def startup():
+        receive_count = 0
+        fut = asyncio.Future()
         async def receive():
-            return {'type': 'lifespan.startup'}
+            nonlocal receive_count
+            receive_count += 1
+            if receive_count == 1:
+                fut.set_result(True)
+                return {'type': 'lifespan.startup'}
+            else:
+                await asyncio.sleep(1000000000)
 
         async def send(event):
             pass
@@ -81,7 +89,8 @@ async def main(run_app, host: str, port: int) -> None:
         scope = {'type': 'lifespan', 'asgi': {'version': '3.0', 'spec_version': '2.0'}}
 
         try:
-            await run_app(scope, receive, send)
+            task = asyncio.create_task(run_app(scope, receive, send))
+            await fut
         except:
             print("app doesn`t support startup")
 
