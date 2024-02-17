@@ -1,3 +1,5 @@
+import asyncio
+
 import starlette.requests
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse, PlainTextResponse
@@ -5,6 +7,7 @@ from starlette.routing import Route
 
 
 async def homepage(request):
+    await asyncio.sleep(0.6)
     return JSONResponse({'hello': 'world'})
 
 

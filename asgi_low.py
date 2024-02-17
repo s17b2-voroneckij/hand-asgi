@@ -41,30 +41,32 @@ class Protocol(asyncio.Protocol):
     def data_received(self, data: bytes):
         connection = self.connection
         connection.receive_data(data)
-        next_event = connection.next_event()
-        if isinstance(next_event, h11.Request):
-            if b'?' in next_event.target:
-                path, query = next_event.target.split(b'?')
+        while True:
+            next_event = connection.next_event()
+            if isinstance(next_event, h11.Request):
+                if b'?' in next_event.target:
+                    path, query = next_event.target.split(b'?')
+                else:
+                    path = next_event.target
+                    query = b""
+                scope = {
+                    'type': 'http',
+                    'asgi': {'version': '3.0', 'spec_version': '2.3'},
+                    'http_version': next_event.http_version.decode(),
+                    'server': (self.host, self.port),
+                    'scheme': 'http',
+                    'method': next_event.method.decode(),
+                    'path': path.decode(),
+                    'query_string': query,
+                    'headers': next_event.headers,
+                    'state': {}
+                }
+                self.task = asyncio.create_task(self.app(scope, self.receive, self.send))
+            elif isinstance(next_event, h11.Data):
+                self.tasks.append(asyncio.create_task(self.queue.put({'type': 'http.request', 'body': next_event.data, 'more_body': False})))
             else:
-                path = next_event.target
-                query = b""
-            scope = {
-                'type': 'http',
-                'asgi': {'version': '3.0', 'spec_version': '2.3'},
-                'http_version': next_event.http_version.decode(),
-                'server': (self.host, self.port),
-                'scheme': 'http',
-                'method': next_event.method.decode(),
-                'path': path.decode(),
-                'query_string': query,
-                'headers': next_event.headers,
-                'state': {}
-            }
-            self.task = asyncio.create_task(self.app(scope, self.receive, self.send))
-        elif isinstance(next_event, h11.Data):
-            self.tasks.append(asyncio.create_task(self.queue.put({'type': 'http.request', 'body': next_event.data, 'more_body': False})))
-        else:
-            print("unclear event", type(next_event))
+                print("unclear event", type(next_event))
+                break
 
 
 async def main(app, host, port):
