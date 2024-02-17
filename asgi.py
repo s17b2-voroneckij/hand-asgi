@@ -5,6 +5,8 @@ from apps import echo_app
 
 
 async def main(run_app, host: str, port: int) -> None:
+    task = None
+
     async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         # read all the request
         # data = await reader.readuntil(b"\r\n\r\n")
@@ -89,6 +91,7 @@ async def main(run_app, host: str, port: int) -> None:
         scope = {'type': 'lifespan', 'asgi': {'version': '3.0', 'spec_version': '2.0'}}
 
         try:
+            nonlocal task
             task = asyncio.create_task(run_app(scope, receive, send))
             await fut
         except:
